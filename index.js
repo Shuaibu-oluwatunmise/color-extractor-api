@@ -1,8 +1,6 @@
 const express = require("express");
 const axios = require("axios");
-const ColorThief = require("colorthief");
 const { createCanvas, loadImage } = require("canvas");
-
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -13,15 +11,27 @@ app.get("/api/extract", async (req, res) => {
   try {
     const response = await axios.get(img, { responseType: "arraybuffer" });
     const buffer = Buffer.from(response.data, "binary");
-
     const image = await loadImage(buffer);
     const canvas = createCanvas(image.width, image.height);
     const ctx = canvas.getContext("2d");
     ctx.drawImage(image, 0, 0);
 
-    const rgb = ColorThief.getColor(canvas);
-    const primary = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-    const secondary = `rgb(${Math.min(rgb[0] + 20, 255)}, ${Math.min(rgb[1] + 20, 255)}, ${Math.min(rgb[2] + 20, 255)})`;
+    const imageData = ctx.getImageData(0, 0, image.width, image.height).data;
+
+    let r = 0, g = 0, b = 0, count = 0;
+    for (let i = 0; i < imageData.length; i += 4 * 100) { // sample every 100px
+      r += imageData[i];
+      g += imageData[i + 1];
+      b += imageData[i + 2];
+      count++;
+    }
+
+    r = Math.round(r / count);
+    g = Math.round(g / count);
+    b = Math.round(b / count);
+
+    const primary = `rgb(${r}, ${g}, ${b})`;
+    const secondary = `rgb(${Math.min(r + 30, 255)}, ${Math.min(g + 30, 255)}, ${Math.min(b + 30, 255)})`;
 
     res.status(200).json({ primary, secondary });
   } catch (err) {
